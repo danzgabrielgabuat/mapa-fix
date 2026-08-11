@@ -8,12 +8,7 @@ A Streamlit app that fuzzy-matches messy location names against a clean referenc
 
 Location data is rarely clean. Names get typed inconsistently, diacritics like ñ get dropped, casing varies, and extra whitespace sneaks in — "Muñoz" becomes "Munoz" or "Science City of Muñoz". These small inconsistencies are enough to break a join between a dataset and a map file, which is a problem when you're trying to get a spreadsheet of locations to line up with a GeoJSON/TopoJSON file for mapping tools like Power BI's Shape Map.
 
-A naive fuzzy match isn't enough either, since it can confidently match a
-location to the wrong region entirely if two places share a similar name
-across different provinces or states. MapaFix solves this by scoping the
-fuzzy match to only compare a location against candidates within its stated
-parent region, so accuracy and correctness are never traded off against each
-other.
+A naive fuzzy match isn't enough either, since it can confidently match a location to the wrong region entirely if two places share a similar name across different provinces or states. MapaFix solves this by scoping the fuzzy match to only compare a location against candidates within its stated parent region, so accuracy and correctness are never traded off against each other.
 
 ## What it does
 
@@ -42,7 +37,7 @@ pip install streamlit pandas geopandas rapidfuzz
 ## Usage
 
 ```bash
-streamlit run mapafix.py
+streamlit run mapa-fix.py
 ```
 
 1. Upload a CSV/Excel file with location and region columns
