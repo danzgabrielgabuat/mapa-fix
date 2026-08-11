@@ -1,6 +1,6 @@
 # 🗺 MapaFix: Geo Fuzzy Matcher
 
-*Because "Muñoz" and "Munoz" shouldn't be strangers.*
+*Because "Muñoz City" and "Science City of Muñoz" shouldn't be strangers.*
 
 A Streamlit app that fuzzy-matches messy location names against a clean reference map file, using province-scoped matching so a name never accidentally matches to the wrong parent province.
 

@@ -6,7 +6,7 @@ from rapidfuzz import process, fuzz
 st.set_page_config(layout="wide", page_title="MapaFix", page_icon="🗺")
 
 st.header("🗺 MapaFix: Geo Fuzzy Matcher")
-st.write("*Because \"Muñoz\" and \"Munoz\" shouldn't be strangers.*")
+st.write("*Because \"Muñoz City\" and \"Science City of Muñoz\" shouldn't be strangers.*")
 
 st.write(
     "Match messy Philippine municipality and province names against a clean reference "
