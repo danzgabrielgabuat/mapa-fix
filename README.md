@@ -4,6 +4,8 @@
 
 A Streamlit app that fuzzy-matches messy location names against a clean reference map file, using province-scoped matching so a name never accidentally matches to the wrong parent province.
 
+**Live demo:** [[ai-study-buddy-0.streamlit.app](https://mapa-fix.streamlit.app/)]
+
 ## Background
 
 Location data is rarely clean. Names get typed inconsistently, diacritics like ñ get dropped, casing varies, and extra whitespace sneaks in — "Muñoz" becomes "Munoz" or "Science City of Muñoz". These small inconsistencies are enough to break a join between a dataset and a map file, which is a problem when you're trying to get a spreadsheet of locations to line up with a GeoJSON/TopoJSON file for mapping tools like Power BI's Shape Map.
