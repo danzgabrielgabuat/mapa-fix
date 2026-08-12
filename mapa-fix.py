@@ -3,24 +3,7 @@ import pandas as pd
 import geopandas as gpd
 from rapidfuzz import process, fuzz
 
-st.set_page_config(layout="wide", page_title="MapaFix", page_icon="🗺")
-
-st.header("🗺 MapaFix: Geo Fuzzy Matcher")
-st.write("*Because \"Muñoz City\" and \"Science City of Muñoz\" shouldn't be strangers.*")
-
-st.write(
-    "Match messy Philippine municipality and province names against a clean reference "
-    "dataset. It resolves typos, formatting differences, and naming inconsistencies "
-    "using province-scoped fuzzy matching, so a name never accidentally matches to "
-    "the wrong parent province."
-)
-st.write(
-    "Upload a CSV/Excel file with location and province columns, plus a GeoJSON or "
-    "TopoJSON map file to match against. Preview both side by side, run the match, "
-    "and download a corrected CSV with clean, standardized location names, ready to "
-    "join with mapping tools like Power BI's Shape Map."
-)
-st.divider()
+st.set_page_config(layout="wide")
 
 with st.sidebar:
     st.title("Matching Parameters")
@@ -35,6 +18,23 @@ with st.sidebar:
 
     st.divider()
     run_button = st.button("Run Fuzzy Matching", use_container_width=True, )
+
+st.header("🗺 MapaFix")
+st.write(
+    "Because \"Muñoz\" and \"Munoz\" shouldn't be strangers."
+)
+st.write(
+    "Match messy location names against a clean reference dataset. It resolves "
+    "typos, formatting differences, and naming inconsistencies using region-scoped "
+    "fuzzy matching, so a name never accidentally matches to the wrong parent region."
+)
+st.write(
+    "Upload a CSV/Excel file with location and region columns, plus a GeoJSON or "
+    "TopoJSON map file to match against. Preview both side by side, run the match, "
+    "and download a corrected CSV with clean, standardized location names, ready to "
+    "join with mapping tools like Power BI's Shape Map."
+)
+st.divider()
 
 col_a, col_b = st.columns(2)
 
@@ -97,32 +97,54 @@ with col_a:
 def get_province_candidates(gdf, province_name, province_col):
     return gdf[gdf[province_col] == province_name]
 
+SCORERS = [
+    ("token_set_ratio", fuzz.token_set_ratio),
+    ("token_sort_ratio", fuzz.token_sort_ratio),
+    ("WRatio", fuzz.WRatio),
+]
+
 def match_municipality(gdf, location_name, province_name, location_col, province_col, threshold=60.0):
     candidates = get_province_candidates(gdf, province_name, province_col)
     if candidates.empty:
-        return None, None
+        return None, None, None
     names = candidates[location_col].tolist()
-    match = process.extractOne(location_name, names, scorer=fuzz.WRatio, score_cutoff=threshold)
-    if match is None:
-        return None, None
-    _, score, idx = match
-    return candidates.iloc[idx], score
+
+    for scorer_name, scorer_func in SCORERS:
+        match = process.extractOne(location_name, names, scorer=scorer_func, score_cutoff=threshold)
+        if match is not None:
+            _, score, idx = match
+            return candidates.iloc[idx], score, scorer_name
+
+    return None, None, None
 
 if run_button:
     if file1 is not None and file2 is not None and sheet is not None and gdf is not None:
         matched_locations = []
         matched_provinces = []
         results = []
+        unmatched_rows = []
         for loc, prov in zip(sheet[location_sheet], sheet[province_sheet]):
-            matched_row, score = match_municipality(gdf, loc, prov, location_gdf, province_gdf, threshold=60.0)
-            matched_locations.append(matched_row[location_gdf] if matched_row is not None else None)
-            matched_provinces.append(matched_row[province_gdf] if matched_row is not None else None)
+            matched_row, score, scorer_used = match_municipality(gdf, loc, prov, location_gdf, province_gdf, threshold=60.0)
+
+            if matched_row is not None:
+                matched_locations.append(matched_row[location_gdf])
+                matched_provinces.append(matched_row[province_gdf])
+            else:
+                # if no match found, keep the original values instead of overwriting with None
+                matched_locations.append(loc)
+                matched_provinces.append(prov)
+                unmatched_rows.append({
+                    "Input Location": loc,
+                    "Input Province": prov,
+                })
+
             results.append({
                 "Input Location": loc,
                 "Input Province": prov,
-                "Matched Location": matched_locations[-1],
-                "Matched Province": matched_provinces[-1],
-                "Match Score": score
+                "Matched Location": matched_row[location_gdf] if matched_row is not None else None,
+                "Matched Province": matched_row[province_gdf] if matched_row is not None else None,
+                "Match Score": score,
+                "Match Method": scorer_used if scorer_used is not None else "No match"
             })
         with col_b:
             with st.spinner("Performing fuzzy matching...", show_time=True):
@@ -139,14 +161,34 @@ if run_button:
                     st.subheader("New Matched CSV File")
                     st.dataframe(output_sheet)
 
-                    csv = results_df.to_csv(index=False).encode('utf-8')
+                    csv = output_sheet.to_csv(index=False).encode('utf-8')
                     st.download_button(
                         label="Download the new CSV file here!",
                         data=csv,
                         file_name='matched_results.csv',
                         mime='text/csv',
                     )
-                    
+
+                if unmatched_rows:
+                    unmatched_df = pd.DataFrame(unmatched_rows)
+                    with st.expander(f"⚠️ Unmatched Rows ({len(unmatched_df)})"):
+                        st.subheader("Unmatched Rows")
+                        st.write(
+                            "These rows had no match above the score threshold within their "
+                            "stated region, so their original values were kept as-is in the "
+                            "output file. Review them for typos or provinces/regions missing "
+                            "from the map file."
+                        )
+                        st.dataframe(unmatched_df)
+
+                        unmatched_csv = unmatched_df.to_csv(index=False).encode('utf-8')
+                        st.download_button(
+                            label="Download unmatched rows as CSV",
+                            data=unmatched_csv,
+                            file_name='unmatched_rows.csv',
+                            mime='text/csv',
+                        )
+
                 st.success("Fuzzy matching completed successfully.", icon="✅")
 
     else:
