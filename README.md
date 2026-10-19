@@ -1,58 +1,64 @@
-# 🗺 MapaFix: Geo Fuzzy Matcher
+# 🗺 MapaFix: Geographic Name Matcher
 
-*Because "Muñoz City" and "Science City of Muñoz" shouldn't be strangers.*
+*Because "Muñoz" and "Munoz" shouldn't be strangers.*
 
-A Streamlit app that fuzzy-matches messy location names against a clean reference map file, using province-scoped matching so a name never accidentally matches to the wrong parent province.
+A Streamlit app that matches messy location names against a clean GeoJSON or TopoJSON reference file. Matching is province-scoped, and deterministic checks run before fuzzy matching so obvious variants are resolved without silently accepting close-but-wrong names.
 
-**Live demo:** [[ai-study-buddy-0.streamlit.app](https://mapa-fix.streamlit.app/)]
+**Live demo:** [mapa-fix.streamlit.app](https://mapa-fix.streamlit.app/)
 
 ## Background
 
 Location data is rarely clean. Names get typed inconsistently, diacritics like ñ get dropped, casing varies, and extra whitespace sneaks in — "Muñoz" becomes "Munoz" or "Science City of Muñoz". These small inconsistencies are enough to break a join between a dataset and a map file, which is a problem when you're trying to get a spreadsheet of locations to line up with a GeoJSON/TopoJSON file for mapping tools like Power BI's Shape Map.
 
-A naive fuzzy match isn't enough either, since it can confidently match a location to the wrong region entirely if two places share a similar name across different provinces or states. MapaFix solves this by scoping the fuzzy match to only compare a location against candidates within its stated parent region, so accuracy and correctness are never traded off against each other.
+A naive fuzzy match isn't enough either. It can miss obvious naming variants, and it can also confidently match a location to the wrong place when two names are similar. MapaFix tries exact and normalized matches first, then common geographic naming variants, then abbreviations. Fuzzy matching is a last step, and close scores are marked **Needs Review**.
+
+If an input province is incomplete (for example `Ilocos` instead of `Ilocos Norte` or `Ilocos Sur`), municipality matching still runs across the plausible provinces. The municipality can resolve the location when it is unique. Competing municipalities stay in **Needs Review**.
 
 ## What it does
 
-- **Region-scoped fuzzy matching** — a location is only matched against
-  candidates within its stated parent region, so names never cross-match
-  into the wrong province, state, or district
-- **Upload CSV/Excel + GeoJSON/TopoJSON** — match a tabular dataset directly
-  against a map file
-- **Side-by-side preview** — inspect both the uploaded data and the reference
-  map before running the match
-- **Match scoring** — see the confidence score behind every match, not just
-  the result
-- **Clean CSV export** — download a corrected file with standardized location
-  names, ready to join with mapping tools like Power BI's Shape Map
+- **Deterministic-first matching** — exact, normalized exact, city/municipality naming variants, then abbreviations
+- **Province-aware municipality matching** — a confirmed province restricts the search; an ambiguous province becomes a candidate set
+- **Ambiguity detection** — similar top scores are sent to review instead of auto-accepted
+- **Upload CSV/Excel + GeoJSON/TopoJSON** — match a tabular dataset directly against a map file
+- **Audit output** — every row records method, status, candidates, search scope, score, and score margin
+- **Clean CSV export** — download original columns plus matching results
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.9+
 
 ## Installation
 
 ```bash
-pip install streamlit pandas geopandas rapidfuzz
+pip install -r requirements.txt
 ```
 
 ## Usage
 
 ```bash
-streamlit run mapa-fix.py
+streamlit run app.py
 ```
 
-1. Upload a CSV/Excel file with location and region columns
+`streamlit run mapa-fix.py` still works as a compatibility entry point.
+
+1. Upload a CSV/Excel file with location and parent/province columns
 2. Upload a GeoJSON/TopoJSON file to match against
-3. Select the relevant columns in both files
-4. Click **Run Fuzzy Matching**
-5. Preview the results and download the corrected CSV
+3. Select the relevant columns in the sidebar
+4. Set the minimum fuzzy score and score-margin thresholds if needed
+5. Click **Run Matching**
+6. Review the summary, needs-review, and unmatched tables
+7. Download the corrected dataset and the audit dataset
 
 ## Project structure
 
 ```
 mapa-fix/
-├── mapa-fix.py     # Main Streamlit app
+├── app.py              # Streamlit UI
+├── mapa-fix.py         # Compatibility entry point
+├── matcher.py          # Matching pipeline
+├── normalizer.py       # Name cleaning and variants
+├── geo_loader.py       # GeoJSON / TopoJSON loading
+├── tests/              # Normalization and matching tests
 └── README.md
 ```
 
@@ -61,21 +67,19 @@ mapa-fix/
 - [Streamlit](https://streamlit.io) — web app framework
 - [GeoPandas](https://geopandas.org) — reading and handling GeoJSON/TopoJSON
 - [RapidFuzz](https://github.com/rapidfuzz/RapidFuzz) — fuzzy string matching
-  (`WRatio` scorer)
-- [pandas](https://pandas.pydata.org) — tabular data handling
+- [pandas](https://pandas.org) — tabular data handling
+
+## Tests
+
+```bash
+pytest
+```
 
 ## Next steps
 
-- **Adjustable match threshold** — expose the fuzzy match cutoff as a UI
-  control instead of a fixed value, so users can tune precision vs. recall
-- **Unmatched-row review** — a dedicated view for locations that failed to
-  match, with the closest candidates shown for manual resolution
-- **Multi-level matching** — support more than two hierarchy levels (e.g.
-  region → province → municipality) instead of a single parent/child pair
-- **Batch file support** — match multiple CSV files against the same
-  reference map in one run
-- **Match history/session persistence** — keep previous runs available
-  without re-uploading files each time
+- **Multi-level matching** — support more than two hierarchy levels (e.g. region → province → municipality)
+- **Batch file support** — match multiple CSV files against the same reference map in one run
+- **Interactive review** — let users pick among close candidates from the UI
 
 ## Author
 
